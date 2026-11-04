@@ -1,11 +1,19 @@
 import numpy as np
 import pandas as pd
 import pytest
+from conftest import sintetico
 
 from titanic_kaggle.cli import main
 from titanic_kaggle.envio import gerar_envio, validar_envio
 from titanic_kaggle.features import criar_features, preparar_treino
-from titanic_kaggle.modelos import BASELINE, NOMES, avaliar, construir
+from titanic_kaggle.modelos import (
+    BASELINE,
+    NOMES,
+    avaliar,
+    construir,
+    efeito_dos_grupos,
+    notas_por_dobra,
+)
 
 
 @pytest.mark.parametrize("nome", NOMES)
@@ -49,6 +57,34 @@ def test_modelo_aprende_o_sinal_dos_dados_sinteticos(treino):
     X, y = preparar_treino(treino)
     tabela = avaliar(X, y, ("logistica",), repeticoes=2).set_index("modelo")
     assert tabela.loc["logistica", "media"] > 0.65
+
+
+def test_grupos_ajudam_quando_o_destino_e_do_grupo():
+    # Dados sintéticos em que sexo, classe etc. não explicam nada e o destino é do bilhete: sem
+    # grupos o modelo fica perto do acaso; com a sobrevivência do grupo (codificada sem vazar) sobe.
+    rng = np.random.default_rng(3)
+    df = sintetico(400, semente=4)
+    grupo = np.arange(400) // 4
+    destino = rng.random(100) < 0.5
+    df["Ticket"] = [f"G{g}" for g in grupo]
+    df["Survived"] = (rng.random(400) < np.where(destino[grupo], 0.92, 0.08)).astype(int)
+    X, y = preparar_treino(df)
+    tabela = avaliar(X, y, ("logistica", "logistica+grupo"), repeticoes=2).set_index("modelo")
+    assert tabela.loc["logistica+grupo", "media"] > tabela.loc["logistica", "media"] + 0.15
+
+
+def test_efeito_dos_grupos_compara_com_o_mesmo_modelo(treino):
+    X, y = preparar_treino(treino)
+    notas = notas_por_dobra(X, y, ("logistica", "logistica+tam", "logistica+grupo"), repeticoes=1)
+    efeito = efeito_dos_grupos(notas).set_index("modelo")
+    assert set(efeito.index) == {"logistica+tam", "logistica+grupo"}
+    assert (efeito["contra"] == "logistica").all()
+    assert (efeito[["melhor", "igual", "pior"]].sum(axis=1) == 5).all()  # 5 dobras x 1 repetição
+
+
+def test_variante_desconhecida_da_erro_claro():
+    with pytest.raises(ValueError, match="Modelo desconhecido"):
+        construir("logistica+magica")
 
 
 def test_envio_valido(treino, teste):

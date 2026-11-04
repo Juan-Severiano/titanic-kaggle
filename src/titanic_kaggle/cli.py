@@ -10,7 +10,7 @@ from .dados import DADOS, SAIDAS, DadosAusentes, carregar
 from .envio import gerar_envio, salvar_envio, validar_envio
 from .explorar import resumo
 from .features import preparar_treino
-from .modelos import NOMES, avaliar
+from .modelos import NOMES, avaliar, efeito_dos_grupos, notas_por_dobra, resumir
 
 
 def _formatar(tabela) -> str:
@@ -27,11 +27,16 @@ def _resumo(args: argparse.Namespace) -> int:
 
 
 def _avaliar(args: argparse.Namespace) -> int:
-    treino, _ = carregar(args.dados)
-    X, y = preparar_treino(treino)
-    tabela = avaliar(X, y, tuple(args.modelos), repeticoes=args.repeticoes)
+    treino, teste = carregar(args.dados)
+    X, y = preparar_treino(treino, teste)
+    nomes = tuple(args.modelos)
+    notas = notas_por_dobra(X, y, nomes, repeticoes=args.repeticoes)
     print(f"Acurácia em validação cruzada (5 dobras x {args.repeticoes} repetições):\n")
-    print(_formatar(tabela.set_index("modelo")))
+    print(_formatar(resumir(notas, nomes).set_index("modelo")))
+    efeito = efeito_dos_grupos(notas)
+    if not efeito.empty:
+        print("\nEfeito dos grupos, dobra a dobra, contra o mesmo modelo sem grupos:\n")
+        print(_formatar(efeito.set_index("modelo")))
     print(
         "\n'desvio' é entre dobras; 'ganho' é a diferença para a regra de gênero. "
         "O placar do Kaggle usa só o teste e costuma ficar abaixo da validação."
@@ -43,9 +48,12 @@ def _gerar(args: argparse.Namespace) -> int:
     treino, teste = carregar(args.dados)
     nome = args.modelo
     if nome == "auto":
-        X, y = preparar_treino(treino)
+        X, y = preparar_treino(treino, teste)
         nome = str(avaliar(X, y, repeticoes=args.repeticoes).iloc[0]["modelo"])
-        print(f"Modelo escolhido pela validação cruzada: {nome}")
+        print(
+            f"Modelo com a maior média na validação cruzada: {nome} "
+            "(escolher o maior entre vários é um pouco otimista; diferenças pequenas são ruído)"
+        )
     envio = gerar_envio(nome, treino, teste)
     validar_envio(envio, teste)
     caminho = salvar_envio(envio, args.saida)

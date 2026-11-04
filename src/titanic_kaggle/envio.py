@@ -14,9 +14,9 @@ COLUNAS_ENVIO = ["PassengerId", "Survived"]
 
 def gerar_envio(nome: str, treino: pd.DataFrame, teste: pd.DataFrame) -> pd.DataFrame:
     """Treina `nome` em todo o treino e prevê o teste."""
-    X, y = preparar_treino(treino)
+    X, y = preparar_treino(treino, teste)
     modelo = construir(nome).fit(X, y)
-    previsao = modelo.predict(criar_features(teste))
+    previsao = modelo.predict(criar_features(teste, treino))
     return pd.DataFrame(
         {"PassengerId": teste["PassengerId"].to_numpy(), "Survived": previsao.astype(int)}
     )

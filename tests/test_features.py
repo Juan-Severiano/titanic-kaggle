@@ -40,6 +40,7 @@ def test_criar_features_colunas_e_valores():
             "Age": [22.0, np.nan],
             "SibSp": [1, 0],
             "Parch": [0, 0],
+            "Ticket": ["A/5 21171", "PC 17599"],
             "Fare": [7.25, 0.0],
             "Cabin": [np.nan, "C85"],
             "Embarked": ["S", "C"],
@@ -54,6 +55,42 @@ def test_criar_features_colunas_e_valores():
     assert f["Classe"].tolist() == ["3", "1"]
     assert f["Titulo"].tolist() == ["Mr", "Mrs"]
     assert f["LogFare"].iloc[1] == 0.0
+
+
+def _quadro(tickets, nomes, classes):
+    n = len(tickets)
+    return pd.DataFrame(
+        {
+            "Pclass": classes,
+            "Name": nomes,
+            "Sex": ["male"] * n,
+            "Age": [30.0] * n,
+            "SibSp": [0] * n,
+            "Parch": [0] * n,
+            "Ticket": tickets,
+            "Fare": [10.0] * n,
+            "Cabin": [np.nan] * n,
+            "Embarked": ["S"] * n,
+        }
+    )
+
+
+def test_tamanho_do_grupo_conta_treino_e_teste_juntos():
+    treino = _quadro(["A", "B"], ["Silva, Mr. Ana", "Souza, Mr. Bia"], [3, 3])
+    teste = _quadro(["A", "C"], ["Silva, Mrs. Cleo", "Lima, Mr. Dan"], [3, 1])
+    sozinho = criar_features(treino)
+    junto = criar_features(treino, teste)
+    assert sozinho["TamBilhete"].tolist() == [1, 1]
+    assert junto["TamBilhete"].tolist() == [2, 1]  # o bilhete A também aparece no teste
+    assert junto["TamFamilia"].tolist() == [2, 1]  # Silva|3 aparece nos dois
+    # visto do outro lado, a contagem é a mesma
+    assert criar_features(teste, treino)["TamBilhete"].tolist() == [2, 1]
+    assert junto["ChaveFamilia"].tolist() == ["Silva|3", "Souza|3"]
+
+
+def test_classe_diferente_separa_familias_com_o_mesmo_sobrenome():
+    df = _quadro(["A", "B"], ["Silva, Mr. Ana", "Silva, Mr. Bia"], [1, 3])
+    assert criar_features(df)["TamFamilia"].tolist() == [1, 1]
 
 
 def test_criar_features_nao_muda_o_original(treino):

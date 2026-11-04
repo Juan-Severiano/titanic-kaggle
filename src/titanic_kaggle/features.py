@@ -30,6 +30,8 @@ COLUNAS_NUMERICAS = [
     "Sozinho",
 ]
 COLUNAS_CATEGORICAS = ["Sex", "Classe", "Embarked", "Titulo", "Deck"]
+# Tamanho do grupo (quantos passageiros dividem o bilhete ou a família), contado em treino + teste.
+COLUNAS_TAMANHO_GRUPO = ["TamBilhete", "TamFamilia"]
 
 
 def extrair_titulo(nome: str) -> str:
@@ -40,8 +42,19 @@ def extrair_titulo(nome: str) -> str:
     return titulo if titulo in TITULOS_COMUNS else "Raro"
 
 
-def criar_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Colunas do Kaggle -> colunas do modelo. Sem olhar outras linhas."""
+def _chaves(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Bilhete e família (sobrenome + classe). Só usa colunas de entrada, nunca o rótulo."""
+    sobrenome = df["Name"].astype(str).str.split(",").str[0].str.strip()
+    return df["Ticket"].astype(str), sobrenome + "|" + df["Pclass"].astype(str)
+
+
+def criar_features(df: pd.DataFrame, referencia: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Colunas do Kaggle -> colunas do modelo.
+
+    Tudo é por linha, exceto o tamanho do grupo (`TamBilhete`, `TamFamilia`), contado em `df` mais
+    `referencia` (passe o outro arquivo: treino e teste contam o mesmo conjunto). Isso só usa colunas
+    de entrada, nunca o rótulo, então não vaza a resposta.
+    """
     saida = pd.DataFrame(index=df.index)
     saida["Sex"] = df["Sex"]
     saida["Classe"] = df["Pclass"].astype(str)
@@ -55,12 +68,24 @@ def criar_features(df: pd.DataFrame) -> pd.DataFrame:
     saida["Sozinho"] = (saida["TamanhoFamilia"] == 1).astype(int)
     saida["Titulo"] = df["Name"].map(extrair_titulo)
     # Deck = primeira letra da cabine; sem cabine vira "U" (desconhecido).
-    saida["Deck"] = df["Cabin"].fillna("U").astype(str).str[0]
+    saida["Deck"] = df["Cabin"].astype(object).fillna("U").astype(str).str[0]
+
+    colunas = ["Name", "Ticket", "Pclass"]
+    todos = df[colunas] if referencia is None else pd.concat([df[colunas], referencia[colunas]])
+    bilhetes_todos, familias_todas = _chaves(todos)
+    bilhete, familia = _chaves(df)
+    saida["ChaveBilhete"] = bilhete
+    saida["ChaveFamilia"] = familia
+    saida["TamBilhete"] = bilhete.map(bilhetes_todos.value_counts()).astype(int)
+    saida["TamFamilia"] = familia.map(familias_todas.value_counts()).astype(int)
     return saida
 
 
-def preparar_treino(treino: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    return criar_features(treino), treino["Survived"].astype(int)
+def preparar_treino(
+    treino: pd.DataFrame, teste: pd.DataFrame | None = None
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Features do treino (tamanho de grupo contado com o teste, se dado) e o rótulo."""
+    return criar_features(treino, teste), treino["Survived"].astype(int)
 
 
 class ImputaIdade(BaseEstimator, TransformerMixin):
@@ -87,7 +112,8 @@ class ImputaIdade(BaseEstimator, TransformerMixin):
         return X
 
 
-def montar_colunas() -> ColumnTransformer:
+def montar_colunas(extras: tuple[str, ...] | list[str] = ()) -> ColumnTransformer:
+    """`extras`: colunas numéricas a mais (tamanho de grupo, sobrevivência do grupo)."""
     numericas = Pipeline(
         [("imputar", SimpleImputer(strategy="median")), ("escala", StandardScaler())]
     )
@@ -99,7 +125,7 @@ def montar_colunas() -> ColumnTransformer:
     )
     return ColumnTransformer(
         [
-            ("num", numericas, COLUNAS_NUMERICAS),
+            ("num", numericas, [*COLUNAS_NUMERICAS, *extras]),
             ("cat", categoricas, COLUNAS_CATEGORICAS),
         ]
     )
