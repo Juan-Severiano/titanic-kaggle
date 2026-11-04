@@ -4,7 +4,7 @@ Competição [Titanic](https://www.kaggle.com/competitions/titanic) do Kaggle: p
 
 O projeto compara um baseline de uma linha com três modelos, cada um com e sem features de grupo (bilhete e família), avalia **sem vazamento** por validação cruzada estratificada repetida e gera o CSV de envio já validado. Ele **não envia nada ao Kaggle**: o envio é sempre um passo manual.
 
-> **Estado em 04/11/2026:** código, testes (dados sintéticos) e avaliação nos dados reais prontos ([resultados](#resultados)). Primeiro envio ao Kaggle (logística, sem grupos): **placar público 0,76794** (321 acertos em 418), bem abaixo dos 0,8278 da validação cruzada. As features de grupo deram +0,8 a +1,3 ponto na validação cruzada; essa versão foi gerada, mas **ainda não foi enviada**.
+> **Estado em 04/11/2026:** código, testes (dados sintéticos) e avaliação nos dados reais prontos ([resultados](#resultados)). Primeiro envio ao Kaggle (logística, sem grupos): **placar público 0,76794** (321 acertos em 418), bem abaixo dos 0,8278 da validação cruzada. As features de grupo deram +0,8 a +1,3 ponto na validação cruzada; enviada (`floresta+grupo`), ela fez **0,80143 de placar público** (335 acertos em 418), 14 acertos a mais que a logística.
 
 ## Uso
 
@@ -73,10 +73,11 @@ Efeito dos grupos, dobra a dobra (25 dobras, mesmas dobras), contra o mesmo mode
 
 - O **tamanho** do grupo sozinho não ajuda (de -0,2 a +0,04 ponto). A **sobrevivência** do grupo ajuda nos três modelos, de +0,8 a +1,3 ponto, e vence em mais dobras do que perde. É pouco perto do desvio entre dobras (2 pontos), mas consistente.
 - Entre os três modelos com grupos a diferença é de 0,3 ponto: não dá para dizer qual é melhor. Escolher o maior entre vários é um pouco otimista.
-- Cobertura: só 152 dos 418 passageiros do teste têm algum outro passageiro do mesmo bilhete no treino (177 pela família). Na validação cruzada cada linha vê só cerca de 80% dos rótulos do treino, então lá os grupos ajudam um pouco menos do que no teste real; mesmo assim, a maioria dos passageiros não tem grupo, e o ganho no placar tende a ser pequeno.
-- `titanic gerar` escolheu `floresta+grupo` (a maior média) e previu 143 sobreviventes entre os 418 do teste; 32 previsões diferem do envio da logística. Esse CSV ainda não foi enviado.
+- Cobertura: só 152 dos 418 passageiros do teste têm algum outro passageiro do mesmo bilhete no treino (177 pela família). Na validação cruzada cada linha vê só cerca de 80% dos rótulos do treino, então lá os grupos ajudam um pouco menos do que no teste real; mesmo assim, a maioria dos passageiros não tem grupo, então eu esperava um ganho pequeno no placar (o envio real ficou acima disso, veja abaixo).
+- `titanic gerar` escolheu `floresta+grupo` (a maior média) e previu 143 sobreviventes entre os 418 do teste; 32 previsões diferem do envio da logística.
 - Essas são notas de **validação**. O placar público do Kaggle usa só as 418 linhas do teste.
 - **Placar público do envio da logística (04/11/2026): 0,76794**, ou seja, 321 acertos em 418. Ficou 6 pontos abaixo da validação cruzada. O erro padrão de uma acurácia medida em 418 linhas é de cerca de 2 pontos, e o teste não é igual ao treino; por isso esse placar **não separa** o modelo da regra de gênero, apesar dos 4 pontos de ganho na validação.
+- **Placar público do envio de `floresta+grupo` (04/11/2026): 0,80143**, ou seja, 335 acertos em 418. Das 32 previsões que diferem do envio da logística, 23 passaram a acertar e 9 passaram a errar (+14). O ganho foi maior que o +1 ponto da validação cruzada; como o erro padrão de uma acurácia em 418 linhas é de cerca de 2 pontos, leia isso como um resultado favorável, não como uma medida precisa do efeito dos grupos.
 - Medir só pelo placar público é pouco confiável: com 10 envios por dia dá para "ajustar" o modelo ao teste sem aprender nada. A validação cruzada continua sendo a régua para decidir o que mudar.
 
 ## Dados e regras
