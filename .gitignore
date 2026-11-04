@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# Os dados da competição são do Kaggle e têm regras de uso: nunca versionar nem redistribuir.
+data/
+*.zip
+
+# Envios gerados localmente (reproduzíveis).
+saidas/
+*.csv

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "titanic-kaggle"
+version = "0.1.0"
+description = "Competição Titanic do Kaggle: prever quem sobreviveu, com validação cruzada sem vazamento e um CSV de envio validado."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+titanic = "titanic_kaggle.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/titanic_kaggle"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
